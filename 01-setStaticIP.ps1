@@ -2,20 +2,15 @@
 #  Windows Server 2022 - 設定固定 IP 位址
 #  根據 113 年工科技藝競賽要求
 # ===============================
-
-# 提示使用者輸入崗位編號
-$XX = Read-Host "請輸入崗位編號（例如：01）"  # 取得崗位編號用於組成 IP 位址
-
 # 驗證輸入
-if ([string]::IsNullOrWhiteSpace($XX)) {  # 檢查輸入是否為空
-    $XX = "01"  # 若為空則使用預設值 01
-    Write-Host "使用預設崗位編號：$XX" -ForegroundColor Yellow  # 以黃色顯示使用預設值訊息
-}
-
-# 移除前導零（例如 01 -> 1）
-$XXNum = $XX -replace '^0+', ''  # 使用正規表示式移除前導零，將 01 轉換為 1
-if ([string]::IsNullOrWhiteSpace($XXNum)) { $XXNum = "0" }  # 若結果為空（輸入為 00）則設為 0
-
+    # 提示使用者輸入崗位編號
+    $XX = Read-Host "請輸入崗位編號（例如：01）"  # 取得崗位編號用於組成 IP 位址
+    # 檢查輸入是否為空
+    $XXNum = $XX -replace '^0+', ''  # 使用正規表示式移除前導零，將 01 轉換為 1
+    if ([string]::IsNullOrWhiteSpace($XXNum)) {  # 若輸入為空或格式錯誤（輸入為 01）則設為 1 
+    $XXNum = "1" 
+    Write-Host "使用預設崗位編號：01" -ForegroundColor Yellow  # 以黃色顯示使用預設值訊息
+    }    
 # 組合 IP 位址
 $IPAddress = "172.16.$XXNum.254"  # 設定伺服器 IP 位址為 172.16.XX.254
 $PrefixLength = 24  # 設定子網路遮罩長度為 24 位元（相當於 255.255.255.0）
