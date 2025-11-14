@@ -1,6 +1,7 @@
 # ===============================
 #  Windows Server 2022 - 設定固定 IP 位址
 #  根據 113 年工科技藝競賽要求
+#        (建議手動設定)
 # ===============================
 # 驗證輸入
     # 提示使用者輸入崗位編號
@@ -10,18 +11,22 @@
     if ([string]::IsNullOrWhiteSpace($XXNum)) {  # 若輸入為空或格式錯誤（輸入為 01）則設為 1 
     $XXNum = "1" 
     Write-Host "使用預設崗位編號：01" -ForegroundColor Yellow  # 以黃色顯示使用預設值訊息
-    }    
+    } 
+
 # 組合 IP 位址
 $IPAddress = "172.16.$XXNum.254"  # 設定伺服器 IP 位址為 172.16.XX.254
+$SecondaryIPAddress = "120.118.$XXNum.1"  # 設定伺服器次要 IP2 位址為 120.118.XX.1
 $PrefixLength = 24  # 設定子網路遮罩長度為 24 位元（相當於 255.255.255.0）
 $Gateway = "172.16.$XXNum.1"  # 設定預設閘道為 172.16.XX.1
-$DNSServer = "127.0.0.1"  # 設定 DNS 伺服器為本機（127.0.0.1），因為此伺服器將成為網域控制站
+$DNSServer = "172.16.$XXNum.254"  # 設定 DNS 伺服器為本機（"172.16.$XXNum.254"），因為此伺服器將成為網域控制站
+
 
 # 顯示即將設定的資訊
-Write-Host "`n===============================================================================" -ForegroundColor Cyan
+Write-Host "===============================================================================" -ForegroundColor Cyan
 Write-Host "  即將設定固定 IP 位址" -ForegroundColor Cyan
 Write-Host "===============================================================================" -ForegroundColor Cyan
-Write-Host "  IP 位址：$IPAddress"  # 顯示 IP 位址
+Write-Host "  LAN IP 位址：$IPAddress  "# 顯示LAN IP 位址
+Write-Host "  WAN IP 位址：$SecondaryIPAddress  "# 顯示WAN IP 位址
 Write-Host "  子網路遮罩：255.255.255.0 (/$PrefixLength)"  # 顯示子網路遮罩
 Write-Host "  預設閘道：$Gateway"  # 顯示預設閘道
 Write-Host "  DNS 伺服器：$DNSServer"  # 顯示 DNS 伺服器
@@ -46,6 +51,12 @@ if ($null -eq $Adapter) {  # 檢查是否找到網路介面卡
 
 $InterfaceAlias = $Adapter.Name  # 取得網路介面卡的名稱（別名）
 Write-Host "使用網路介面卡：$InterfaceAlias" -ForegroundColor Green  # 顯示使用的網路介面卡
+    
+# 關閉 IPv6 協定
+Write-Host "正在關閉網路介面卡上的 IPv6 協定..." -ForegroundColor Cyan
+# 使用 Disable-NetAdapterBinding 關閉 IPv6 (ms_tcpip6)
+Disable-NetAdapterBinding -InterfaceAlias $InterfaceAlias -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue | Out-Null
+Write-Host "✅ IPv6 協定已關閉" -ForegroundColor Green
 
 # 移除現有的 IP 設定（如果有 DHCP 或其他設定）
 Write-Host "正在移除現有的 IP 設定..." -ForegroundColor Cyan  # 顯示進度訊息
@@ -56,6 +67,11 @@ Remove-NetRoute -InterfaceAlias $InterfaceAlias -Confirm:$false -ErrorAction Sil
 Write-Host "正在設定固定 IP 位址..." -ForegroundColor Cyan  # 顯示進度訊息
 New-NetIPAddress -InterfaceAlias $InterfaceAlias -IPAddress $IPAddress -PrefixLength $PrefixLength -DefaultGateway $Gateway | Out-Null  # 設定新的 IP 位址、子網路遮罩和預設閘道
 
+# 設定次要 IP 位址
+Write-Host "正在設定次要 IP 位址 ($SecondaryIPAddress)..." -ForegroundColor Cyan
+# 次要 IP 只需要設定 IP 和 PrefixLength，不需要再次設定 DefaultGateway
+New-NetIPAddress -InterfaceAlias $InterfaceAlias -IPAddress $SecondaryIPAddress -PrefixLength $PrefixLength | Out-Null
+
 # 設定 DNS 伺服器
 Write-Host "正在設定 DNS 伺服器..." -ForegroundColor Cyan  # 顯示進度訊息
 Set-DnsClientServerAddress -InterfaceAlias $InterfaceAlias -ServerAddresses $DNSServer  # 設定 DNS 伺服器位址為本機
@@ -65,9 +81,10 @@ Write-Host "`n正在驗證 IP 設定..." -ForegroundColor Cyan  # 顯示進度�
 $IPConfig = Get-NetIPAddress -InterfaceAlias $InterfaceAlias -AddressFamily IPv4  # 取得 IPv4 位址資訊
 $DNS = Get-DnsClientServerAddress -InterfaceAlias $InterfaceAlias -AddressFamily IPv4  # 取得 DNS 伺服器資訊
 
-Write-Host "`n✅ IP 位址設定完成！" -ForegroundColor Green  # 顯示完成訊息
-Write-Host "`n目前設定：" -ForegroundColor Cyan  # 顯示設定標題
+Write-Host " ✅ IP 位址設定完成！" -ForegroundColor Green  # 顯示完成訊息
+Write-Host " 目前設定：" -ForegroundColor Cyan  # 顯示設定標題
 Write-Host "  IP 位址：$($IPConfig.IPAddress)"  # 顯示已設定的 IP 位址
 Write-Host "  子網路遮罩長度：$($IPConfig.PrefixLength)"  # 顯示子網路遮罩長度
 Write-Host "  DNS 伺服器：$($DNS.ServerAddresses)"  # 顯示 DNS 伺服器位址
 Write-Host ""  # 空行
+ipconfig /all
